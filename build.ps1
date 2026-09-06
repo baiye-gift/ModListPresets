@@ -10,4 +10,6 @@ $refs = $names | ForEach-Object { '/reference:' + (Join-Path $managed ($_ + '.dl
 $sources = Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src') -Filter '*.cs' | ForEach-Object FullName
 & $compiler /nologo /target:library /optimize+ /warn:4 /utf8output ('/out:' + (Join-Path $output 'ModListPresets.dll')) @refs @sources
 if ($LASTEXITCODE -ne 0) { throw 'Compilation failed.' }
+Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging\mod.yaml') -Destination $output -Force
+Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging\mod_info.yaml') -Destination $output -Force
 Write-Host "Built: $output"

@@ -1,6 +1,9 @@
 # 模组清单管理 / Mod List Presets
 
-独立伴随模组，适用于 Windows 版《缺氧》。不修改 Mod Updater 的 DLL，不接管其更新功能，可以同时启用。
+> [!IMPORTANT]
+> **前置模组：[Mod Updater](https://steamcommunity.com/sharedfiles/filedetails/?id=2018291283)（Steam Workshop ID：`2018291283`）。必须先安装并启用 Mod Updater，再启用本模组。**
+
+Mod Updater 的伴随扩展，适用于 Windows 版《缺氧》。本模组不会修改 Mod Updater 的 DLL，也不接管其更新功能；两者需要同时启用。
 
 ## 下载
 
@@ -8,9 +11,10 @@
 
 ## 使用
 
-1. 完全退出游戏。从 Releases 下载 ZIP，解压后将其中的 `ModListPresets` 文件夹放到“文档/Klei/OxygenNotIncluded/mods/local”下。
-2. 在游戏模组列表启用“模组清单管理 / Mod List Presets”，重启游戏。
-3. 再次打开游戏的“模组”页面，点击窗口底部的“模组清单”。新界面使用居中小窗口，并沿用游戏原生控件样式。
+1. 先安装并启用前置模组 [Mod Updater](https://steamcommunity.com/sharedfiles/filedetails/?id=2018291283)。
+2. 完全退出游戏。从 Releases 下载 ZIP，解压后将其中的 `ModListPresets` 文件夹放到“文档/Klei/OxygenNotIncluded/mods/local”下。
+3. 在游戏模组列表同时启用 Mod Updater 和“模组清单管理 / Mod List Presets”，重启游戏。
+4. 再次打开游戏的“模组”页面，点击窗口底部的“模组清单”。新界面使用居中小窗口，并沿用游戏原生控件样式。
 
 开发者安装方式：`./install.ps1` 只安装本地文件；`./install.ps1 -Enable` 另将本工具在原版和眼冒金星模式下启用。安装脚本拒绝在游戏运行时覆盖文件。
 
@@ -78,7 +82,7 @@
 
 使用 Windows 自带 .NET Framework C# 编译器，引用本机游戏程序集。安装包仅有一个 DLL 和两个 YAML 文件，无额外 PLib 或 Harmony 副本。
 
-界面复用游戏原生 Klei/TMP 控件，无需 Mod Updater 或 PLib 依赖。筛选、批量、设置和清单操作使用锚定在按钮下方的小菜单，保存名称与导入路径才使用居中输入窗口。启用状态通过游戏 `SetEnabledForActiveDlc` 修改，批量变更后调用游戏 `Manager.Save`，退出页面沿用游戏原生重启检查。Windows 文件选择器使用系统 comdlg32，无额外 WinForms 依赖，取消选择不会修改配置。
+界面复用游戏原生 Klei/TMP 控件，并以 Mod Updater 为前置模组；不依赖 PLib。筛选、批量、设置和清单操作使用锚定在按钮下方的小菜单，保存名称与导入路径才使用居中输入窗口。启用状态通过游戏 `SetEnabledForActiveDlc` 修改，批量变更后调用游戏 `Manager.Save`，退出页面沿用游戏原生重启检查。Windows 文件选择器使用系统 comdlg32，无额外 WinForms 依赖，取消选择不会修改配置。
 
 写入手动清单/设置使用同目录临时文件后原子替换；游戏配置保存失败时尝试恢复操作前的内存列表与磁盘内容。删除功能只接受清单库根目录内的 JSON 文件。JSON 不启用类型反序列化，限制文件 4 MB、2000 个项目，并校验来源、ID、重复项目和模式。
 

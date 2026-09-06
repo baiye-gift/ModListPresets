@@ -1,5 +1,7 @@
 # Steam 创意工坊发布说明
 
+> 前置模组：Mod Updater（Steam Workshop ID：`2018291283`）。用户必须先安装并启用 Mod Updater。
+
 ## 发布文件
 
 在 Oxygen Not Included Uploader 中选择下面这个文件夹本身：
@@ -48,7 +50,7 @@
 支持游戏内容：原版及 DLC
 最低支持版本：744825
 
-本模组独立运行，不修改 Mod Updater。
+本模组依赖 Mod Updater，但不会修改 Mod Updater 的 DLL 或接管其更新功能。
 
 个人清单保存在游戏配置目录中，不会随创意工坊模组自动上传。换电脑时请在模组内导出清单，再在新电脑导入。
 
