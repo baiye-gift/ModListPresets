@@ -47,12 +47,3 @@
 ## 更新说明
 
 这是以个人使用为主的模组。只有我自己在玩《缺氧》期间才会按实际需要适配和更新，更新频率不会很高。
-
-## 开发
-
-```powershell
-./build.ps1 -GamePath 'D:\steam\steamapps\common\OxygenNotIncluded'
-./test.ps1 -GamePath 'D:\steam\steamapps\common\OxygenNotIncluded'
-```
-
-源码和构建文件位于本仓库；发布包只包含一个 DLL 和两个 YAML 文件。
