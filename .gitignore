@@ -1,0 +1,11 @@
+tools/
+reference/
+tests/bin/
+installation-backups/
+dist/
+releases/
+tests/evidence-*
+tests/UI-acceptance*.md
+bin/
+obj/
+*.tmp
