@@ -2,9 +2,13 @@
 
 独立伴随模组，适用于 Windows 版《缺氧》。不修改 Mod Updater 的 DLL，不接管其更新功能，可以同时启用。
 
+## 下载
+
+[下载最新版本](https://github.com/baiye-gift/ModListPresets/releases/latest)
+
 ## 使用
 
-1. 完全退出游戏。将 `dist/ModListPresets` 整个文件夹放到“文档/Klei/OxygenNotIncluded/mods/local”下。
+1. 完全退出游戏。从 Releases 下载 ZIP，解压后将其中的 `ModListPresets` 文件夹放到“文档/Klei/OxygenNotIncluded/mods/local”下。
 2. 在游戏模组列表启用“模组清单管理 / Mod List Presets”，重启游戏。
 3. 再次打开游戏的“模组”页面，点击窗口底部的“模组清单”。新界面使用居中小窗口，并沿用游戏原生控件样式。
 
