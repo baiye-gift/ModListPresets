@@ -10,7 +10,7 @@ namespace ModListPresets {
     public sealed class ModEntryPoint : UserMod2 {
         public override void OnLoad(Harmony harmony) {
             base.OnLoad(harmony);
-            Debug.Log("[ModListPresets] 1.4.0 loaded; anchored menus and explicit post-apply states.");
+            Debug.Log("[ModListPresets] 1.4.1 loaded; required tools protected and preset library cached.");
         }
     }
     [HarmonyPatch(typeof(ModsScreen), "OnActivate")]
@@ -31,7 +31,7 @@ namespace ModListPresets {
         }
     }
     public static class GameBridge {
-        public const string SelfId = "Local.ModListPresets";
+        public const string SelfId = PresetCore.SelfId;
         public static string Root { get { return Path.Combine(KMod.Manager.GetDirectory(), "config", "ModListPresets"); } }
         public static string Library { get { return Path.Combine(Root, "presets"); } }
         public static string ExportFolder { get { return Path.Combine(Root, "exports"); } }
@@ -66,9 +66,12 @@ namespace ModListPresets {
             foreach (var m in Manager.mods.Where(Installed)) {
                 var current = Describe(m); Entry entry;
                 desired.TryGetValue(current.Key, out entry);
-                bool enabled = PresetCore.DesiredEnabled(entry, current.Key, overrides);
-                if (m.staticID == SelfId) enabled = true;
-                if (enabled && m.available_content == 0) throw new InvalidOperationException("此模组目前不兼容或无可用内容，请在预览中设为停用：" + current.Title);
+                bool enabled = PresetCore.DesiredEnabled(entry, current.Key, overrides, current.StaticId);
+                if (enabled && m.available_content == 0) {
+                    if (PresetCore.IsRequiredTool(current))
+                        throw new InvalidOperationException("必需的管理模组目前不可用，请先修复或更新该模组：" + current.Title);
+                    throw new InvalidOperationException("此模组目前不兼容或无可用内容，请在预览中设为停用：" + current.Title);
+                }
             }
             Commit(delegate {
                 var all = Manager.mods;
@@ -77,9 +80,7 @@ namespace ModListPresets {
                 foreach (var m in all.Where(Installed)) {
                     Entry entry; var key = Describe(m).Key;
                     desired.TryGetValue(key, out entry);
-                    bool enabled = PresetCore.DesiredEnabled(entry, key, overrides);
-                    // Keep this recovery tool available even when importing another computer's list.
-                    if (m.staticID == SelfId) enabled = true;
+                    bool enabled = PresetCore.DesiredEnabled(entry, key, overrides, m.staticID);
                     m.SetEnabledForActiveDlc(enabled);
                 }
                 all.Clear(); all.AddRange(order.Select(e => byKey[e.Key]));

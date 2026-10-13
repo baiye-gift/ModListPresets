@@ -22,6 +22,7 @@ namespace ModListPresets {
         LocText textTemplate;
         GameObject applyFooter, dialogShade;
         Settings settings = new Settings();
+        PresetLibrary library = new PresetLibrary();
         Preset selected;
         string selectedFile;
         readonly Dictionary<string, bool> previewOverrides = new Dictionary<string, bool>(StringComparer.Ordinal);
@@ -55,6 +56,7 @@ namespace ModListPresets {
         }
 
         public void Close() {
+            library = new PresetLibrary();
             refreshAt = -1f;
             scrollToTopOnRender = false;
             scrollToTopFrames = 0;
@@ -115,6 +117,7 @@ namespace ModListPresets {
                 throw new InvalidOperationException("无法取得缺氧原生界面样式，请重新打开模组页面后再试。");
             Directory.CreateDirectory(GameBridge.Library);
             LoadSettings();
+            library = new PresetLibrary();
             selected = null; selectedFile = null; previewOverrides.Clear(); view = "library"; search = ""; filter = "all";
 
             GameObject root = new GameObject("ModListPresetsModal", typeof(RectTransform), typeof(Canvas), typeof(GraphicRaycaster));
@@ -198,7 +201,7 @@ namespace ModListPresets {
 
             applyFooter = Row(panel, 44f, Color.clear).gameObject;
             applyButton = CloneButton(applyFooter.transform, "应用这份清单", ApplyPreview, 180f);
-            Label(applyFooter.transform, "仅修改当前游戏模式；管理工具自身保持启用。", 0f, 14f, MutedInk);
+            Label(applyFooter.transform, "仅修改当前游戏模式；清单管理与 Mod Updater 保持启用。", 0f, 14f, MutedInk);
             status = Label(panel, "清单只记录配置，不包含模组本体；缺失模组会自动跳过。", 0f, 14f, MutedInk);
             Height(status.gameObject, 38f);
         }
@@ -296,11 +299,13 @@ namespace ModListPresets {
             if (selected == null) return;
             CloseDialog(); previewOverrides.Clear();
             if (enabled.HasValue)
-                foreach (KMod.Mod mod in GameBridge.Manager.mods.Where(GameBridge.Installed))
-                    if (mod.staticID != GameBridge.SelfId) previewOverrides[GameBridge.Describe(mod).Key] = enabled.Value;
+                foreach (KMod.Mod mod in GameBridge.Manager.mods.Where(GameBridge.Installed)) {
+                    Entry entry = GameBridge.Describe(mod);
+                    if (!PresetCore.IsRequiredTool(entry)) previewOverrides[entry.Key] = enabled.Value;
+                }
             RenderRows();
             Say(!enabled.HasValue ? "已恢复清单原状态；尚未修改游戏配置。" :
-                (enabled.Value ? "应用后将启用所有已安装模组。" : "应用后将停用所有模组，管理工具除外。"));
+                (enabled.Value ? "应用后将启用所有已安装模组。" : "应用后将停用其他模组，清单管理与 Mod Updater 保持启用。"));
         }
 
         void WireSearch(KInputTextField field) {
@@ -339,22 +344,23 @@ namespace ModListPresets {
         void RequestScrollToTop() { scrollToTopOnRender = true; }
 
         void RenderLibrary() {
-            string[] files = Directory.GetFiles(GameBridge.Library, "*.json").OrderByDescending(delegate(string f) { return f; }).ToArray();
+            List<PresetFile> files = library.Load(GameBridge.Library);
             int shown = 0;
-            summary.text = "已保存 " + files.Length + " 份清单。预览后才会显示应用按钮；手动清单永不自动覆盖。";
-            foreach (string file in files) {
-                Preset preset;
-                try { preset = PresetCore.Read(file); }
-                catch (Exception e) { Label(Row(rows, 54f, RowColor), "无法读取 " + Path.GetFileName(file) + "：" + e.Message, 0f, 14f, WarningInk); continue; }
+            summary.text = "已保存 " + files.Count + " 份清单。预览后才会显示应用按钮；手动清单永不自动覆盖。";
+            foreach (PresetFile item in files) {
+                string file = item.Path;
+                Preset preset = item.Preset;
+                if (preset == null) { Label(Row(rows, 54f, RowColor), "无法读取 " + Path.GetFileName(file) + "：" + item.Error, 0f, 14f, WarningInk); continue; }
                 if (!Matches(preset.Name)) continue;
                 shown++;
                 RectTransform row = Row(rows, 64f, RowColor);
                 string mode = String.IsNullOrEmpty(preset.Mode) ? "原版" : "眼冒金星";
                 Label(row, preset.Name + "\n" + mode + " · 启用 " + preset.Mods.Count(delegate(Entry m) { return m.Enabled; }) + " / " + preset.Mods.Count + " · " + FormatCreatedUtc(preset.CreatedUtc), 0f, 15f);
-                Preset captured = preset; string capturedFile = file;
-                CloneButton(row, "预览", delegate { Preview(captured, capturedFile); }, 86f);
+                string capturedFile = file;
+                // Preview must reflect the file being applied, even if a sync tool preserved its metadata.
+                CloneButton(row, "预览", delegate { Preview(PresetCore.Read(capturedFile), capturedFile); }, 86f);
             }
-            if (files.Length == 0) EmptyRow("还没有清单。点击上方“保存当前”，为现在的模组组合起一个名字。");
+            if (files.Count == 0) EmptyRow("还没有清单。点击上方“保存当前”，为现在的模组组合起一个名字。");
             else if (shown == 0) EmptyRow("没有匹配的清单。");
         }
 
@@ -394,16 +400,16 @@ namespace ModListPresets {
             int missing = selected.Mods.Count(delegate(Entry e) { return !current.ContainsKey(e.Key); });
             int finalEnabled = current.Values.Count(delegate(Entry e) {
                 Entry saved; target.TryGetValue(e.Key, out saved);
-                return e.StaticId == GameBridge.SelfId || PresetCore.DesiredEnabled(saved, e.Key, previewOverrides);
+                return PresetCore.DesiredEnabled(saved, e.Key, previewOverrides, e.StaticId);
             });
             int finalDisabled = current.Count - finalEnabled;
             int enable = current.Values.Count(delegate(Entry e) {
                 Entry saved; target.TryGetValue(e.Key, out saved);
-                return !e.Enabled && PresetCore.DesiredEnabled(saved, e.Key, previewOverrides);
+                return !e.Enabled && PresetCore.DesiredEnabled(saved, e.Key, previewOverrides, e.StaticId);
             });
             int disable = current.Values.Count(delegate(Entry e) {
                 Entry saved; target.TryGetValue(e.Key, out saved);
-                return e.Enabled && e.StaticId != GameBridge.SelfId && !PresetCore.DesiredEnabled(saved, e.Key, previewOverrides);
+                return e.Enabled && !PresetCore.DesiredEnabled(saved, e.Key, previewOverrides, e.StaticId);
             });
             bool modeMatches = selected.Mode == GameBridge.ActiveMode;
             string blocked = !modeMatches ? "【模式不符，不能应用】 " : "";
@@ -413,7 +419,7 @@ namespace ModListPresets {
             foreach (Entry entry in selected.Mods) {
                 index++;
                 Entry local; current.TryGetValue(entry.Key, out local);
-                bool effectiveEnabled = local != null && PresetCore.DesiredEnabled(entry, entry.Key, previewOverrides);
+                bool effectiveEnabled = local != null && PresetCore.DesiredEnabled(entry, entry.Key, previewOverrides, local.StaticId);
                 if (!Matches(entry.Title + " " + entry.Id)) continue;
                 if (filter == "enabled" && (local == null || !effectiveEnabled)) continue;
                 if (filter == "disabled" && (local == null || effectiveEnabled)) continue;
@@ -426,7 +432,7 @@ namespace ModListPresets {
                 Label(row, index + ". " + entry.Title + "\n" + state + " · " + entry.Platform + " · " + entry.Id, 0f, 15f, local == null ? MutedInk : Ink);
                 Entry captured = entry;
                 if (local == null) Label(row, "未安装", 94f, 14f, MutedInk);
-                else if (local.StaticId == GameBridge.SelfId) Label(row, "启用", 94f, 14f, MutedInk);
+                else if (PresetCore.IsRequiredTool(local)) Label(row, "启用（必需）", 104f, 14f, MutedInk);
                 else StateButton(row, effectiveEnabled, delegate(bool value) {
                     previewOverrides[captured.Key] = value; refreshAt = Time.unscaledTime + .05f;
                 }, 104f);
@@ -436,7 +442,7 @@ namespace ModListPresets {
             }
             foreach (Entry entry in current.Values.Where(delegate(Entry e) { return !target.ContainsKey(e.Key); })) {
                 if (!Matches(entry.Title + " " + entry.Id)) continue;
-                bool effectiveEnabled = entry.StaticId == GameBridge.SelfId || PresetCore.DesiredEnabled(null, entry.Key, previewOverrides);
+                bool effectiveEnabled = PresetCore.DesiredEnabled(null, entry.Key, previewOverrides, entry.StaticId);
                 if (filter == "enabled" && !effectiveEnabled) continue;
                 if (filter == "disabled" && effectiveEnabled) continue;
                 if (filter == "missing") continue;
@@ -444,7 +450,7 @@ namespace ModListPresets {
                 RectTransform row = Row(rows, 58f, RowColor);
                 Label(row, "清单外 · " + entry.Title + "\n已安装 · " + entry.Platform + " · " + entry.Id, 0f, 14f, MutedInk);
                 string key = entry.Key;
-                if (entry.StaticId == GameBridge.SelfId) Label(row, "启用", 94f, 14f, MutedInk);
+                if (PresetCore.IsRequiredTool(entry)) Label(row, "启用（必需）", 104f, 14f, MutedInk);
                 else StateButton(row, effectiveEnabled, delegate(bool value) {
                     previewOverrides[key] = value; refreshAt = Time.unscaledTime + .05f;
                 }, 104f);
@@ -477,6 +483,9 @@ namespace ModListPresets {
 
         void ShowLibraryActions(KButton anchor) {
             List<KeyValuePair<string, System.Action>> items = new List<KeyValuePair<string, System.Action>>();
+            items.Add(MenuItem("重新读取清单库", delegate {
+                CloseDialog(); library.Invalidate(); RenderRows(); Say("已重新读取清单库。");
+            }));
             items.Add(MenuItem("上一份备份", delegate { CloseDialog(); PreviewBackup(); }));
             items.Add(MenuItem("打开清单文件夹", delegate { CloseDialog(); OpenFolder(GameBridge.Library); }));
             ShowMenu(anchor, 184f, items);
@@ -611,6 +620,7 @@ namespace ModListPresets {
         }
 
         internal void ModalClosed(PresetModal source) {
+            library = new PresetLibrary();
             if (modal == source) modal = null;
             dialogShade = null; panel = null; rows = null; scroll = null; refreshAt = -1f;
             scrollToTopOnRender = false; scrollToTopFrames = 0;

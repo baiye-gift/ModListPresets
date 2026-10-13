@@ -26,6 +26,8 @@ namespace ModListPresets {
     }
     public sealed class Settings { public bool AutoBackup = false; }
     public static class PresetCore {
+        public const string SelfId = "Local.ModListPresets";
+        public const string UpdaterId = "PeterHan.ModUpdateDate";
         public static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings {
             TypeNameHandling = TypeNameHandling.None, MaxDepth = 20,
             MissingMemberHandling = MissingMemberHandling.Ignore
@@ -66,7 +68,15 @@ namespace ModListPresets {
             result.AddRange(installed.Where(m => !used.Contains(m.Key)));
             return result;
         }
-        public static bool DesiredEnabled(Entry saved, string key, IDictionary<string, bool> overrides) {
+        public static bool IsRequiredTool(Entry installed) {
+            return IsRequiredTool(installed.Key, installed.StaticId);
+        }
+        static bool IsRequiredTool(string key, string staticId) {
+            return key == "Local:ModListPresets" || key == "Steam:2018291283" ||
+                staticId == SelfId || staticId == UpdaterId;
+        }
+        public static bool DesiredEnabled(Entry saved, string key, IDictionary<string, bool> overrides, string installedStaticId = null) {
+            if (IsRequiredTool(key, installedStaticId)) return true;
             bool value;
             if (overrides != null && overrides.TryGetValue(key, out value)) return value;
             return saved != null && saved.Enabled;
